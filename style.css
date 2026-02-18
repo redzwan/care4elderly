@@ -1,0 +1,72 @@
+:root {
+    --primary-color: #4facfe;
+    --secondary-color: #00f2fe;
+    --glass-bg: rgba(255, 255, 255, 0.65);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.8);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    --text-dark: #2d3436;
+    --text-muted: #636e72;
+}
+
+body {
+    /* Daylight Gradient Background */
+    background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+    min-height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    color: var(--text-dark);
+}
+
+/* Glass Card */
+.glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 20px;
+    padding: 30px;
+}
+
+/* Navbar Glass */
+.navbar-glass {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.text-gradient {
+    background: -webkit-linear-gradient(45deg, #0984e3, #6c5ce7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+
+.btn-primary-glass {
+    background: linear-gradient(45deg, #0984e3, #6c5ce7);
+    border: none;
+    color: white;
+    box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+    transition: transform 0.2s;
+    border-radius: 12px;
+}
+.btn-primary-glass:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
+    color: white;
+}
+
+.form-control {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 10px;
+    color: #333;
+}
+.form-control:focus {
+    background: white;
+    box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.1);
+    border-color: #6c5ce7;
+}
+
+img.d-inline-block.align-text-top {
+    border-radius: 20px;
+}

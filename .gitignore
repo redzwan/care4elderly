@@ -1,0 +1,27 @@
+# Environment variables (contains secrets)
+.env
+
+# IDE files
+.idea/
+.claude
+*.iml
+.vscode/
+
+# Log files
+logs/*.log
+
+# Uploaded files (user data)
+assets/documents/
+assets/uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Database dumps and backups (may contain sensitive data)
+*.sql
+!database/schema.sql
+
+# Dependency directories (if added later)
+vendor/
+node_modules/

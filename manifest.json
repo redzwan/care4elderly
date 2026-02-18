@@ -1,0 +1,23 @@
+{
+  "name": "Care4TheLove1 Family Care",
+  "short_name": "Care4TheLove1",
+  "start_url": "/modules/dashboard/index.php",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#4facfe",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
