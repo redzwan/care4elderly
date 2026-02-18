@@ -118,11 +118,94 @@ $s = $conn->query("SELECT * FROM smtp_settings WHERE id=1")->fetch_assoc();
                         <button type="submit" class="btn btn-primary-glass px-4 py-2 fw-bold">Save Configuration</button>
                     </div>
                 </form>
+
+                <hr class="my-4 text-muted">
+
+                <!-- Test Email Section -->
+                <h5 class="fw-bold text-success mb-3"><i class="fas fa-paper-plane me-2"></i>Test Email Configuration</h5>
+                <p class="text-muted small mb-3">Send a test email to verify your SMTP settings are working correctly.</p>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-7">
+                        <label class="form-label small fw-bold">Recipient Email</label>
+                        <input type="email" id="testEmail" class="form-control" placeholder="you@example.com" value="<?= htmlspecialchars($_SESSION['user_email'] ?? '') ?>">
+                    </div>
+                    <div class="col-md-5">
+                        <button type="button" id="btnTestMail" class="btn btn-success px-4 py-2 w-100" onclick="sendTestEmail()">
+                            <i class="fas fa-paper-plane me-2"></i>Send Test Email
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Result Area -->
+                <div id="testResult" class="mt-3" style="display:none;"></div>
+
+                <!-- SMTP Log (collapsible) -->
+                <div id="testLogWrapper" class="mt-3" style="display:none;">
+                    <a class="small text-muted" data-bs-toggle="collapse" href="#smtpLog" role="button" aria-expanded="false">
+                        <i class="fas fa-terminal me-1"></i>Show SMTP Diagnostic Log
+                    </a>
+                    <div class="collapse mt-2" id="smtpLog">
+                        <pre id="testLogContent" class="bg-dark text-light p-3 rounded small" style="max-height: 300px; overflow-y: auto; font-size: 12px;"></pre>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 <?php include '../../includes/footer.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function sendTestEmail() {
+    const email = document.getElementById('testEmail').value.trim();
+    const btn = document.getElementById('btnTestMail');
+    const resultDiv = document.getElementById('testResult');
+    const logWrapper = document.getElementById('testLogWrapper');
+    const logContent = document.getElementById('testLogContent');
+
+    if (!email || !email.includes('@')) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle me-2"></i>Please enter a valid email address.</div>';
+        return;
+    }
+
+    // Loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="alert alert-light py-2 text-muted"><i class="fas fa-circle-notch fa-spin me-2"></i>Connecting to SMTP server and sending test email...</div>';
+    logWrapper.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('test_email', email);
+    formData.append('csrf_token', '<?= generateCsrfToken() ?>');
+
+    fetch('test_mail.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.innerHTML = '<div class="alert alert-success py-2"><i class="fas fa-check-circle me-2"></i>' + data.message + '</div>';
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>' + data.message + '</div>';
+        }
+
+        // Show SMTP log
+        if (data.log && data.log.length > 0) {
+            logWrapper.style.display = 'block';
+            logContent.textContent = data.log.join('\n');
+        }
+    })
+    .catch(err => {
+        resultDiv.innerHTML = '<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-2"></i>Network error: ' + err.message + '</div>';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Test Email';
+    });
+}
+</script>
 </body>
 </html>
