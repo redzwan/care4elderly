@@ -1,4 +1,4 @@
-# Care4TheLove1 — Family Elderly Care Management
+# Care For Elderly — Family Elderly Care Management
 
 A PHP-based web application that helps families coordinate the care of elderly parents. Families can manage parent profiles, track medical appointments, store important documents, monitor medications, and coordinate who is attending each appointment — all in one shared family space.
 
