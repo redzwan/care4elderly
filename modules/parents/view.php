@@ -262,11 +262,20 @@ $docTypeOptionsHTML .= "<option value='other|other'>Other</option>";
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
     <style>
         #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); z-index: 10000; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; backdrop-filter: blur(5px); }
         .carousel-item object { min-height: 60vh; }
         .carousel-control-prev, .carousel-control-next { filter: invert(1) grayscale(100); }
         .carousel-item img { max-height: 75vh; width: auto; margin: auto; }
+        /* Image Editor Styles */
+        #imageEditorView { display: none; flex-direction: column; }
+        #imageEditorView .cropper-container { max-height: 60vh; }
+        .edit-toolbar { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 10px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+        .edit-toolbar .btn { border-radius: 12px; min-width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.85rem; }
+        .edit-toolbar .btn i { font-size: 1rem; }
+        #editorSaving { position: absolute; inset: 0; background: rgba(255,255,255,0.85); z-index: 100; backdrop-filter: blur(4px); visibility: hidden; opacity: 0; transition: opacity 0.2s; }
+        #editorSaving.active { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body>
@@ -374,7 +383,76 @@ $docTypeOptionsHTML .= "<option value='other|other'>Other</option>";
     </div>
 </div>
 <?php include '../../includes/footer.php'; ?>
-<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content glass-card border-0 p-0 shadow-lg"><div class="modal-header border-bottom border-light p-3"><h5 class="modal-title fw-bold text-dark" id="previewModalTitle">Document Viewer</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body p-0 bg-light position-relative" style="min-height: 400px; height: 75vh;"><div id="documentCarousel" class="carousel slide h-100" data-bs-interval="false"><div class="carousel-inner h-100" id="carouselContent"></div><button class="carousel-control-prev" type="button" data-bs-target="#documentCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon" aria-hidden="true"></span><span class="visually-hidden">Previous</span></button><button class="carousel-control-next" type="button" data-bs-target="#documentCarousel" data-bs-slide="next"><span class="carousel-control-next-icon" aria-hidden="true"></span><span class="visually-hidden">Next</span></button></div></div><div class="modal-footer border-top border-light p-3 justify-content-between bg-white align-items-center"><small class="text-muted fst-italic"><i class="fas fa-info-circle me-1"></i> Swipe to view</small><a id="modalDownloadBtn" href="#" class="btn btn-primary-glass fw-bold shadow-sm" download><i class="fas fa-download me-2"></i>Download File</a></div></div></div></div>
+<div class="modal fade" id="documentPreviewModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content glass-card border-0 p-0 shadow-lg">
+    <div class="modal-header border-bottom border-light p-3">
+        <h5 class="modal-title fw-bold text-dark" id="previewModalTitle">Document Viewer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+    <div class="modal-body p-0 bg-light position-relative" style="min-height: 400px; height: 75vh;">
+        <!-- Normal Carousel View -->
+        <div id="carouselView">
+            <div id="documentCarousel" class="carousel slide h-100" data-bs-interval="false">
+                <div class="carousel-inner h-100" id="carouselContent"></div>
+                <button class="carousel-control-prev" type="button" data-bs-target="#documentCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon" aria-hidden="true"></span><span class="visually-hidden">Previous</span></button>
+                <button class="carousel-control-next" type="button" data-bs-target="#documentCarousel" data-bs-slide="next"><span class="carousel-control-next-icon" aria-hidden="true"></span><span class="visually-hidden">Next</span></button>
+            </div>
+        </div>
+        <!-- Image Editor View -->
+        <div id="imageEditorView" class="h-100 position-relative">
+            <div id="editorSaving" class="d-flex flex-column align-items-center justify-content-center">
+                <div class="spinner-border text-primary mb-2" role="status"></div>
+                <span class="fw-bold text-muted">Saving...</span>
+            </div>
+            <div class="h-100 d-flex flex-column">
+                <div class="flex-grow-1 overflow-hidden p-2" style="min-height:0;">
+                    <img id="editorImage" src="" style="max-width:100%; display:block;">
+                </div>
+                <div class="p-3">
+                    <div class="edit-toolbar d-flex align-items-center justify-content-center gap-2 flex-wrap">
+                        <button type="button" class="btn btn-light" onclick="editorRotate(-90)" title="Rotate Left 90°">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button type="button" class="btn btn-light" onclick="editorRotate(90)" title="Rotate Right 90°">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                        <div class="vr mx-1 opacity-25"></div>
+                        <button type="button" class="btn btn-light" onclick="editorFlipH()" title="Flip Horizontal">
+                            <i class="fas fa-arrows-alt-h"></i>
+                        </button>
+                        <button type="button" class="btn btn-light" onclick="editorFlipV()" title="Flip Vertical">
+                            <i class="fas fa-arrows-alt-v"></i>
+                        </button>
+                        <div class="vr mx-1 opacity-25"></div>
+                        <button type="button" class="btn btn-light" id="btnStartCrop" onclick="startCropMode()" title="Crop">
+                            <i class="fas fa-crop-alt"></i>
+                        </button>
+                        <button type="button" class="btn btn-warning text-white" id="btnCancelCrop" onclick="cancelCropMode()" title="Cancel Crop" style="display:none;">
+                            <i class="fas fa-crop-alt"></i> <i class="fas fa-times ms-1"></i>
+                        </button>
+                        <div class="vr mx-1 opacity-25"></div>
+                        <button type="button" class="btn btn-outline-secondary px-3" onclick="editorCancel()">
+                            <i class="fas fa-times me-1"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-success px-3 text-white" onclick="editorSave()">
+                            <i class="fas fa-check me-1"></i> Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer border-top border-light p-3 justify-content-between bg-white align-items-center" id="previewModalFooter">
+        <small class="text-muted fst-italic"><i class="fas fa-info-circle me-1"></i> Swipe to view</small>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-primary fw-bold shadow-sm" id="modalEditBtn" style="display:none;" onclick="startImageEditor()">
+                <i class="fas fa-crop-alt me-2"></i>Edit Image
+            </button>
+            <a id="modalDownloadBtn" href="#" class="btn btn-primary-glass fw-bold shadow-sm" download>
+                <i class="fas fa-download me-2"></i>Download File
+            </a>
+        </div>
+    </div>
+</div></div></div>
 <?php // Include other modals here as they were in the original file ?>
 <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content glass-card border-0 p-0 shadow-lg"><div class="modal-header border-bottom border-light p-4"><h5 class="modal-title fw-bold text-dark"><i class="fas fa-user-edit me-2 text-primary"></i>Edit Profile</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body p-4"><form method="POST" enctype="multipart/form-data" onsubmit="showLoading()"><input type="hidden" name="action" value="edit_profile"><div class="text-center mb-4"><label for="profilePhotoInput" class="cursor-pointer position-relative d-inline-block group-hover"><?php if(!empty($parent['profile_photo'])): ?><img src="../../<?= htmlspecialchars($parent['profile_photo']) ?>" class="rounded-circle shadow-lg border border-3 border-white object-fit-cover" style="width: 110px; height: 110px;"><?php else: ?><div class="bg-white shadow-lg border border-3 border-white rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 110px; height: 110px;"><i class="fas fa-camera fa-2x text-muted opacity-50"></i></div><?php endif; ?><div class="position-absolute top-50 start-50 translate-middle opacity-0 group-hover-opacity-100 transition-all bg-dark bg-opacity-50 rounded-circle d-flex align-items-center justify-content-center text-white" style="width: 110px; height: 110px;"><i class="fas fa-camera"></i></div></label><input type="file" name="profile_photo" id="profilePhotoInput" class="d-none" accept=".jpg,.jpeg,.png"><div class="small fw-bold text-primary mt-2">Tap image to change</div></div><div class="form-floating mb-3"><input type="text" name="full_name" class="form-control border-0 bg-white shadow-sm" id="editName" value="<?= htmlspecialchars($parent['full_name']) ?>" required><label for="editName">Full Name</label></div><div class="row g-2 mb-3"><div class="col-6"><div class="form-floating"><input type="text" name="ic_number" class="form-control border-0 bg-white shadow-sm" id="editIC" value="<?= htmlspecialchars($parent['ic_number']) ?>" required><label for="editIC">IC Number</label></div></div><div class="col-6"><div class="form-floating"><input type="date" name="dob" class="form-control border-0 bg-white shadow-sm" id="editDOB" value="<?= $parent['dob'] ?>" required><label for="editDOB">Date of Birth</label></div></div></div><div class="form-floating mb-3"><input type="text" name="pension_card_no" class="form-control border-0 bg-white shadow-sm" id="editPension" value="<?= htmlspecialchars($parent['pension_card_no']) ?>"><label for="editPension">Pension Card No.</label></div><div class="form-floating mb-4"><textarea name="medical_notes" class="form-control border-0 bg-white shadow-sm" placeholder="Notes" id="editNotes" style="height: 120px"><?= htmlspecialchars($parent['medical_notes']) ?></textarea><label for="editNotes">Medical Notes</label></div><button type="submit" class="btn btn-primary-glass w-100 fw-bold py-3 shadow-sm"><i class="fas fa-save me-2"></i>Save Changes</button></form></div></div></div></div>
 <div class="modal fade" id="medicationModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content glass-card border-0 p-0 shadow-lg"><div class="modal-header border-bottom border-light p-4"><h5 class="modal-title fw-bold text-dark"><i class="fas fa-pills me-2 text-danger"></i>Add Medication</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body p-4"><form method="POST"><input type="hidden" name="action" value="add_medication"><div class="form-floating mb-2"><input type="text" name="medication_name" class="form-control border-0 bg-white shadow-sm" id="medName" placeholder="Medication Name" required><label for="medName">Medication Name (e.g. Paracetamol)</label></div><div class="form-floating mb-3"><textarea name="instruction" class="form-control border-0 bg-white shadow-sm" placeholder="Instruction" id="medInstr" style="height: 80px" required></textarea><label for="medInstr">Dosage Instructions</label></div><div class="row g-2 mb-3"><div class="col-6"><div class="form-floating"><input type="date" name="start_date" class="form-control border-0 bg-white shadow-sm" id="medStart" value="<?= date('Y-m-d') ?>" required><label for="medStart">Start Date</label></div></div><div class="col-6" id="endDateDiv"><div class="form-floating"><input type="date" name="end_date" class="form-control border-0 bg-white shadow-sm" id="medEnd"><label for="medEnd">End Date</label></div></div></div><div class="form-check form-switch mb-4"><input class="form-check-input" type="checkbox" role="switch" name="is_ongoing" id="addIsOngoing" value="1" onchange="toggleEndDate('addIsOngoing', 'endDateDiv')"><label class="form-check-label fw-bold small" for="addIsOngoing">Ongoing Treatment (No End Date)</label></div><button type="submit" class="btn btn-primary-glass w-100 fw-bold py-3 shadow-sm"><i class="fas fa-save me-2"></i>Save Medication</button></form></div></div></div></div>
@@ -383,40 +461,315 @@ $docTypeOptionsHTML .= "<option value='other|other'>Other</option>";
 <template id="document-row-template"><div class="doc-row mb-3 pb-3 border-bottom border-light"><div class="form-floating mb-2"><select name="doc_type_combined[]" class="form-select border-0 bg-white shadow-sm"><?= $docTypeOptionsHTML ?></select><label>Document Type</label></div><div class="input-group shadow-sm"><input class="form-control border-0 bg-white" type="file" name="doc_file[]" required accept=".pdf,.jpg,.jpeg,.png"><button type="button" class="btn btn-light text-danger border-0 bg-white" onclick="removeDocumentRow(this)"><i class="fas fa-times"></i></button></div></div></template>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script>
     function showLoading() { document.getElementById('loadingOverlay').style.display = 'flex'; }
     function toggleEndDate(checkboxId, divId) { const checkbox = document.getElementById(checkboxId); const endDiv = document.getElementById(divId); const endInput = endDiv.querySelector('input'); if (checkbox.checked) { endInput.value = ''; endInput.disabled = true; endDiv.style.opacity = '0.5'; } else { endInput.disabled = false; endDiv.style.opacity = '1'; } }
     function addDocumentRow() { const container = document.getElementById('document-repeater'); const template = document.getElementById('document-row-template'); const clone = template.content.cloneNode(true); container.appendChild(clone); }
     function removeDocumentRow(button) { button.closest('.doc-row').remove(); }
 
-    // Document Preview Modal Logic
+    // ========== IMAGE EDITOR STATE ==========
+    let cropper = null;
+    let currentEditDocId = null;
+    let currentEditFilePath = null;
+    let currentFilesData = [];
+    let editorScaleX = 1;
+    let editorScaleY = 1;
+    let editorRotation = 0;
+    let editorMode = 'view'; // 'view' = rotate/flip only, 'crop' = cropping active
+    let originalImageSrc = null;
+
+    // ========== DOCUMENT PREVIEW MODAL ==========
     const previewModal = document.getElementById('documentPreviewModal');
     const carouselEl = document.getElementById('documentCarousel');
     const downloadBtn = document.getElementById('modalDownloadBtn');
+    const editBtn = document.getElementById('modalEditBtn');
+
     if (previewModal) {
         previewModal.addEventListener('show.bs.modal', function (event) {
             const button = event.relatedTarget;
             const groupTitle = button.getAttribute('data-grouptitle');
             const files = JSON.parse(button.getAttribute('data-files'));
+            currentFilesData = files;
             const modalTitle = previewModal.querySelector('#previewModalTitle');
             const carouselContent = previewModal.querySelector('#carouselContent');
             const controls = previewModal.querySelectorAll('.carousel-control-prev, .carousel-control-next');
-            modalTitle.textContent = groupTitle; carouselContent.innerHTML = '';
+            modalTitle.textContent = groupTitle;
+            carouselContent.innerHTML = '';
             controls.forEach(el => el.style.display = files.length > 1 ? 'flex' : 'none');
+
             files.forEach((file, index) => {
-                const filePath = "../../" + file.file_path; const fileExt = filePath.split('.').pop().toLowerCase(); const isActive = index === 0 ? 'active' : ''; const safeFilename = file.display_label.replace(/[^a-zA-Z0-9-_]/g, '_') + '.' + fileExt;
+                const filePath = "../../" + file.file_path;
+                const fileExt = filePath.split('.').pop().toLowerCase().split('?')[0];
+                const isActive = index === 0 ? 'active' : '';
+                const safeFilename = file.display_label.replace(/[^a-zA-Z0-9-_]/g, '_') + '.' + fileExt;
+                const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExt);
                 let contentHTML = '';
-                if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) { contentHTML = `<img src="${filePath}" class="d-block img-fluid" style="max-height: 75vh; width: auto; margin: auto;" alt="${file.display_label}">`; }
-                else if (fileExt === 'pdf') { contentHTML = `<object data="${filePath}" type="application/pdf" width="100%" height="100%" style="min-height:60vh;"><div class="text-center p-4"><p class="fw-bold">PDF preview unavailable.</p></div></object>`; }
-                carouselContent.insertAdjacentHTML('beforeend', `<div class="carousel-item ${isActive} h-100" data-filepath="${filePath}" data-filename="${safeFilename}"><div class="d-flex justify-content-center align-items-center bg-light h-100">${contentHTML}</div><div class="carousel-caption d-none d-md-block bg-dark bg-opacity-50 rounded p-2 mb-4"><h6 class="text-white m-0">${file.display_label}</h6></div></div>`);
+                if (isImage) {
+                    contentHTML = `<img src="${filePath}?v=${Date.now()}" class="d-block img-fluid" style="max-height: 75vh; width: auto; margin: auto;" alt="${file.display_label}">`;
+                } else if (fileExt === 'pdf') {
+                    contentHTML = `<object data="${filePath}" type="application/pdf" width="100%" height="100%" style="min-height:60vh;"><div class="text-center p-4"><p class="fw-bold">PDF preview unavailable.</p></div></object>`;
+                }
+                carouselContent.insertAdjacentHTML('beforeend', `<div class="carousel-item ${isActive} h-100" data-filepath="${filePath}" data-filename="${safeFilename}" data-docid="${file.id}" data-isimage="${isImage}"><div class="d-flex justify-content-center align-items-center bg-light h-100">${contentHTML}</div><div class="carousel-caption d-none d-md-block bg-dark bg-opacity-50 rounded p-2 mb-4"><h6 class="text-white m-0">${file.display_label}</h6></div></div>`);
             });
-            if (files.length > 0 && downloadBtn) { const first = files[0]; downloadBtn.setAttribute('href', "../../" + first.file_path); downloadBtn.setAttribute('download', first.display_label.replace(/[^a-zA-Z0-9-_]/g, '_') + '.' + first.file_path.split('.').pop().toLowerCase()); }
+
+            if (files.length > 0 && downloadBtn) {
+                const first = files[0];
+                downloadBtn.setAttribute('href', "../../" + first.file_path);
+                downloadBtn.setAttribute('download', first.display_label.replace(/[^a-zA-Z0-9-_]/g, '_') + '.' + first.file_path.split('.').pop().toLowerCase());
+            }
+            updateEditButton();
         });
-        if (carouselEl) { carouselEl.addEventListener('slid.bs.carousel', function () { const active = carouselEl.querySelector('.carousel-item.active'); if (active && downloadBtn) { downloadBtn.setAttribute('href', active.getAttribute('data-filepath')); downloadBtn.setAttribute('download', active.getAttribute('data-filename')); } }); }
-        previewModal.addEventListener('hidden.bs.modal', function () { previewModal.querySelector('#carouselContent').innerHTML = ''; });
+
+        if (carouselEl) {
+            carouselEl.addEventListener('slid.bs.carousel', function () {
+                const active = carouselEl.querySelector('.carousel-item.active');
+                if (active && downloadBtn) {
+                    downloadBtn.setAttribute('href', active.getAttribute('data-filepath'));
+                    downloadBtn.setAttribute('download', active.getAttribute('data-filename'));
+                }
+                updateEditButton();
+            });
+        }
+
+        previewModal.addEventListener('hidden.bs.modal', function () {
+            previewModal.querySelector('#carouselContent').innerHTML = '';
+            editorCancel();
+        });
     }
 
-    // Edit Medication Modal Logic
+    function updateEditButton() {
+        const active = carouselEl.querySelector('.carousel-item.active');
+        if (active && active.getAttribute('data-isimage') === 'true') {
+            editBtn.style.display = 'inline-flex';
+        } else {
+            editBtn.style.display = 'none';
+        }
+    }
+
+    // ========== IMAGE EDITOR FUNCTIONS ==========
+    // ========== HELPER: Rotate a canvas image by degrees ==========
+    function rotateCanvas(img, degrees) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const rad = (degrees * Math.PI) / 180;
+        // For 90/270 rotation, swap width/height
+        if (degrees === 90 || degrees === -270 || degrees === 270 || degrees === -90) {
+            canvas.width = img.naturalHeight || img.height;
+            canvas.height = img.naturalWidth || img.width;
+        } else {
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+        }
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(rad);
+        ctx.drawImage(img, -(img.naturalWidth || img.width) / 2, -(img.naturalHeight || img.height) / 2);
+        return canvas;
+    }
+
+    // ========== HELPER: Flip a canvas image ==========
+    function flipCanvas(img, horizontal) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        canvas.width = w;
+        canvas.height = h;
+        if (horizontal) {
+            ctx.translate(w, 0);
+            ctx.scale(-1, 1);
+        } else {
+            ctx.translate(0, h);
+            ctx.scale(1, -1);
+        }
+        ctx.drawImage(img, 0, 0);
+        return canvas;
+    }
+
+    function startImageEditor() {
+        const active = carouselEl.querySelector('.carousel-item.active');
+        if (!active) return;
+
+        currentEditDocId = active.getAttribute('data-docid');
+        currentEditFilePath = active.getAttribute('data-filepath');
+        editorScaleX = 1;
+        editorScaleY = 1;
+        editorRotation = 0;
+        editorMode = 'view';
+
+        // Destroy any previous cropper
+        if (cropper) { cropper.destroy(); cropper = null; }
+
+        // Switch views
+        document.getElementById('carouselView').style.display = 'none';
+        document.getElementById('imageEditorView').style.display = 'flex';
+        document.getElementById('previewModalFooter').style.display = 'none';
+        document.getElementById('btnStartCrop').style.display = '';
+        document.getElementById('btnCancelCrop').style.display = 'none';
+
+        const editorImg = document.getElementById('editorImage');
+        editorImg.src = '';
+        editorImg.style.maxHeight = '60vh';
+        editorImg.style.width = 'auto';
+        editorImg.style.maxWidth = '100%';
+        editorImg.style.margin = 'auto';
+        editorImg.style.objectFit = 'contain';
+
+        setTimeout(function() {
+            originalImageSrc = currentEditFilePath + '?v=' + Date.now();
+            editorImg.src = originalImageSrc;
+        }, 100);
+    }
+
+    // Rotate: apply immediately to image via canvas (keeps full resolution)
+    function editorRotate(deg) {
+        if (editorMode === 'crop' && cropper) {
+            // If in crop mode, cancel crop first
+            cancelCropMode();
+        }
+        const editorImg = document.getElementById('editorImage');
+        const canvas = rotateCanvas(editorImg, deg);
+        editorImg.src = canvas.toDataURL('image/png');
+        editorRotation = (editorRotation + deg) % 360;
+    }
+
+    function editorFlipH() {
+        if (editorMode === 'crop' && cropper) { cancelCropMode(); }
+        const editorImg = document.getElementById('editorImage');
+        const canvas = flipCanvas(editorImg, true);
+        editorImg.src = canvas.toDataURL('image/png');
+        editorScaleX = -editorScaleX;
+    }
+
+    function editorFlipV() {
+        if (editorMode === 'crop' && cropper) { cancelCropMode(); }
+        const editorImg = document.getElementById('editorImage');
+        const canvas = flipCanvas(editorImg, false);
+        editorImg.src = canvas.toDataURL('image/png');
+        editorScaleY = -editorScaleY;
+    }
+
+    // Crop mode: initialize Cropper.js on the current (possibly rotated) image
+    function startCropMode() {
+        editorMode = 'crop';
+        document.getElementById('btnStartCrop').style.display = 'none';
+        document.getElementById('btnCancelCrop').style.display = '';
+
+        const editorImg = document.getElementById('editorImage');
+        if (cropper) cropper.destroy();
+
+        cropper = new Cropper(editorImg, {
+            viewMode: 1,
+            dragMode: 'crop',
+            autoCropArea: 0.9,
+            responsive: true,
+            restore: false,
+            guides: true,
+            center: true,
+            highlight: true,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            background: true,
+            rotatable: false,  // We handle rotation ourselves
+            scalable: false,
+        });
+    }
+
+    function cancelCropMode() {
+        if (cropper) { cropper.destroy(); cropper = null; }
+        editorMode = 'view';
+        document.getElementById('btnStartCrop').style.display = '';
+        document.getElementById('btnCancelCrop').style.display = 'none';
+    }
+
+    function editorCancel() {
+        if (cropper) { cropper.destroy(); cropper = null; }
+        editorMode = 'view';
+        editorRotation = 0;
+        editorScaleX = 1;
+        editorScaleY = 1;
+        originalImageSrc = null;
+        document.getElementById('imageEditorView').style.display = 'none';
+        document.getElementById('carouselView').style.display = 'block';
+        document.getElementById('previewModalFooter').style.display = 'flex';
+        currentEditDocId = null;
+        currentEditFilePath = null;
+    }
+
+    function editorSave() {
+        if (!currentEditDocId) return;
+
+        document.getElementById('editorSaving').classList.add('active');
+
+        let base64;
+        const ext = currentEditFilePath.split('.').pop().toLowerCase().split('?')[0];
+        const mimeType = (ext === 'png') ? 'image/png' : 'image/jpeg';
+        const quality = (ext === 'png') ? undefined : 0.92;
+
+        if (editorMode === 'crop' && cropper) {
+            // Get cropped canvas at full resolution
+            const canvas = cropper.getCroppedCanvas({
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+            if (!canvas) {
+                alert('Failed to process image.');
+                document.getElementById('editorSaving').classList.remove('active');
+                return;
+            }
+            base64 = canvas.toDataURL(mimeType, quality);
+        } else {
+            // No crop — save the current editor image (which includes rotation/flip)
+            const editorImg = document.getElementById('editorImage');
+            const canvas = document.createElement('canvas');
+            const w = editorImg.naturalWidth || editorImg.width;
+            const h = editorImg.naturalHeight || editorImg.height;
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(editorImg, 0, 0, w, h);
+            base64 = canvas.toDataURL(mimeType, quality);
+        }
+
+        // Send to backend
+        fetch('save_edited_image.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                doc_id: currentEditDocId,
+                image_data: base64
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('editorSaving').classList.remove('active');
+            if (data.success) {
+                // Update the carousel image with cache buster
+                const active = carouselEl.querySelector('.carousel-item.active');
+                if (active) {
+                    const img = active.querySelector('img');
+                    if (img) img.src = currentEditFilePath + '?v=' + Date.now();
+                }
+                editorCancel();
+                // Brief success feedback
+                const footer = document.getElementById('previewModalFooter');
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-success ms-2 py-2 px-3';
+                badge.innerHTML = '<i class="fas fa-check me-1"></i> Saved!';
+                footer.querySelector('.d-flex').prepend(badge);
+                setTimeout(() => badge.remove(), 3000);
+            } else {
+                alert('Error: ' + (data.message || 'Failed to save'));
+            }
+        })
+        .catch(err => {
+            document.getElementById('editorSaving').classList.remove('active');
+            alert('Network error. Please try again.');
+            console.error(err);
+        });
+    }
+
+    // ========== EDIT MEDICATION MODAL ==========
     const editMedModal = document.getElementById('editMedicationModal');
     if(editMedModal) {
         editMedModal.addEventListener('show.bs.modal', function(event) {
